@@ -10,7 +10,7 @@ import (
 )
 
 // get a Bound object from bounding box coordinates
-// bbox format : lon1,lat1,lon2,lat2 eg. 5.630665,45.031614,5.634817,45.034214
+// bbox format : lon1,lat1,lon2,lat2 eg. 5.63066,45.03161,5.63481,45.03421
 func bboxBound(str string) (orb.Bound, error) {
 
 	var minLon, minLat, maxLat, maxLon float64
@@ -31,7 +31,7 @@ func MatchLocation(lat, lon float64, bound orb.Bound) bool {
 	return bound.Contains(point)
 }
 
-// for v0.2
+// for v0.3
 func ExampleGeoJson() {
 
 	dat, err := os.ReadFile("E:/temp/sample.geojson")
@@ -77,4 +77,11 @@ func ExampleGeoJson() {
 		fmt.Println("point", point)
 
 	*/
+}
+
+// to be deleted
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
 }

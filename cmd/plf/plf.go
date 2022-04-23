@@ -49,7 +49,7 @@ func main() {
 
 	cli.AppHelpTemplate = fmt.Sprintf(`%s
 
-WEBSITE: https://github.com/JVillafruela/plf
+WEBSITE: https://github.com/JVillafruela/PicLocFinder
 
 EXAMPLE:
    plf  --bbox="5.68678,45.08596,5.68979,45.08778" E:\OSM\gps\2022\2022-04-16 E:\OSM\gps\2022\2022-04-22
@@ -65,6 +65,7 @@ EXAMPLE:
 	}
 }
 
+// check if the configuration is valid
 func validateConfig(config *Config) error {
 
 	if config.bbox == "" {
@@ -90,6 +91,7 @@ func validateConfig(config *Config) error {
 	return nil
 }
 
+// process the files
 func doWork(config *Config) {
 	//fmt.Printf("config = %+v\n", *config)
 	for _, dir := range config.args {
@@ -98,6 +100,7 @@ func doWork(config *Config) {
 
 }
 
+// traverse a directory looking for geotagged files whose position is inside the bounding box
 func walkPicFilesInDir(dir string, bbox string) error {
 	bound, err := bboxBound(bbox)
 	if err != nil {
@@ -115,7 +118,7 @@ func walkPicFilesInDir(dir string, bbox string) error {
 		}
 
 		if !file.IsDir() && hasPicExtension(info.Name()) {
-			fullname := filepath.Clean(path)
+			fullname := cleanPath(path)
 			lat, lon, err := PicLocation(fullname)
 			if err != nil {
 				fmt.Println("File name: ", fullname, "error ", err)
@@ -130,6 +133,7 @@ func walkPicFilesInDir(dir string, bbox string) error {
 	})
 }
 
+// check if the file has a jpeg extension
 func hasPicExtension(filename string) bool {
 	e := []string{"jpeg", "jpg"} // sorted
 
@@ -142,12 +146,7 @@ func hasPicExtension(filename string) bool {
 
 }
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
+// on Windows get rid of the trailing " added by autocompletion \"
 func cleanPath(path string) string {
 	if runtime.GOOS == "windows" {
 		path = strings.TrimSuffix(path, `"`)
@@ -155,6 +154,7 @@ func cleanPath(path string) string {
 	return filepath.Clean(path)
 }
 
+// check if filename is a directory
 func dirExists(filename string) bool {
 	info, err := os.Stat(filename)
 	if err != nil {
