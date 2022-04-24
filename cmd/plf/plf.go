@@ -15,7 +15,10 @@ import (
 )
 
 type Config struct {
-	bbox string
+	latitude  float64
+	longitude float64
+	radius    int64
+	bbox      string
 	// args are the positional (non-flag) command-line arguments.
 	args []string
 }
@@ -26,14 +29,33 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "plf"
 	app.Usage = "Picture Location Finder\n\n   Find geotagged photos according to the location where they were taken"
-	app.Version = "0.1"
+	app.Version = "0.2"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:        "bbox",
 			Usage:       "bounding box (\"lon1,lat1,lon2,lat2\") ",
-			Required:    true,
+			Required:    false,
 			Destination: &conf.bbox,
+		},
+
+		cli.Float64Flag{
+			Name:        "latitude, lat",
+			Usage:       "latitude (WGS84 [-90,+90])",
+			Required:    false,
+			Destination: &conf.latitude,
+		},
+		cli.Float64Flag{
+			Name:        "longitude, lon",
+			Usage:       "longitude (WGS84 [-180,+180])",
+			Required:    false,
+			Destination: &conf.longitude,
+		},
+		cli.Int64Flag{
+			Name:        "radius",
+			Usage:       "radius (in meters)",
+			Required:    false,
+			Destination: &conf.radius,
 		},
 	}
 
@@ -68,13 +90,35 @@ EXAMPLE:
 // check if the configuration is valid
 func validateConfig(config *Config) error {
 
-	if config.bbox == "" {
-		return errors.New("missing bbox option")
+	bboxSet := config.bbox != ""
+	pointSet := (config.latitude != 0 && config.longitude != 0 && config.radius != 0)
+
+	if !bboxSet && !pointSet {
+		return errors.New("indicate either the bbox option or the lat,lon,radius options")
+	}
+	if bboxSet && pointSet {
+		return errors.New("too many options. Indicate either the bbox option or the lat,lon,radius options")
 	}
 
-	_, err := bboxBound(config.bbox)
-	if err != nil {
-		return errors.New("invalid value for bounding box option. Should be \"lon1,lat1,lon2,lat2\" ")
+	if bboxSet {
+		_, err := BboxBound(config.bbox)
+		if err != nil {
+			return errors.New("invalid value for bounding box option. Should be \"lon1,lat1,lon2,lat2\" ")
+		}
+	}
+
+	if pointSet {
+		err := validateLatitude(config.latitude)
+		if err != nil {
+			return err
+		}
+		err = validateLongitude(config.longitude)
+		if err != nil {
+			return err
+		}
+		if config.radius <= 0 {
+			return errors.New("invalid radius")
+		}
 	}
 
 	if len(config.args) == 0 {
@@ -92,21 +136,22 @@ func validateConfig(config *Config) error {
 }
 
 // process the files
-func doWork(config *Config) {
+func doWork(config *Config) error {
 	//fmt.Printf("config = %+v\n", *config)
-	for _, dir := range config.args {
-		walkPicFilesInDir(dir, config.bbox)
+	if config.bbox != "" {
+		lf, err := NewBboxLocationFinder(config.bbox)
+		if err != nil {
+			return err
+		}
+		for _, dir := range config.args {
+			walkPicFilesInDir(dir, lf)
+		}
 	}
-
+	return nil
 }
 
 // traverse a directory looking for geotagged files whose position is inside the bounding box
-func walkPicFilesInDir(dir string, bbox string) error {
-	bound, err := bboxBound(bbox)
-	if err != nil {
-		return err
-	}
-
+func walkPicFilesInDir(dir string, lf LocationFinder) error {
 	return filepath.WalkDir(dir, func(path string, file fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -125,7 +170,7 @@ func walkPicFilesInDir(dir string, bbox string) error {
 				return nil
 			}
 			//fmt.Println("DDD file name: ", fullname, lon, lat)
-			if MatchLocation(lat, lon, bound) {
+			if lf.Match(lat, lon) {
 				fmt.Println(fullname)
 			}
 		}

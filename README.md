@@ -25,7 +25,7 @@ GLOBAL OPTIONS:
    --help, -h     show help                                                                                    
    --version, -v  print the version                                                                            
                                                                                                                
-WEBSITE: https://github.com/JVillafruela/plf                                                                   
+WEBSITE: https://github.com/JVillafruela/PicLocFinder                                                                   
                                                                                                                
 EXAMPLE:                                                                                                       
    plf  --bbox="5.68678,45.08596,5.68979,45.08778" E:\OSM\gps\2022\2022-04-16 E:\OSM\gps\2022\2022-04-22   
