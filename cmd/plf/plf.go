@@ -73,9 +73,10 @@ func main() {
 
 WEBSITE: https://github.com/JVillafruela/PicLocFinder
 
-EXAMPLE:
-   plf  --bbox="5.68678,45.08596,5.68979,45.08778" E:\OSM\gps\2022\2022-04-16 E:\OSM\gps\2022\2022-04-22
-	
+EXAMPLES:
+   plf --bbox="5.68678,45.08596,5.68979,45.08778" E:\OSM\gps\2022\2022-04-16 E:\OSM\gps\2022\2022-04-22
+
+   plf --latitude=45.087 --longitude=5.688 --radius=20  E:\OSM\gps\2022
 	`, cli.AppHelpTemplate)
 
 	app.Setup()
@@ -136,18 +137,29 @@ func validateConfig(config *Config) error {
 }
 
 // process the files
-func doWork(config *Config) error {
+func doWork(conf *Config) error {
 	//fmt.Printf("config = %+v\n", *config)
-	if config.bbox != "" {
-		lf, err := NewBboxLocationFinder(config.bbox)
+	var lf LocationFinder
+	var err error
+	if conf.bbox != "" {
+		lf, err = NewBboxLocationFinder(conf.bbox)
 		if err != nil {
 			return err
 		}
-		for _, dir := range config.args {
-			walkPicFilesInDir(dir, lf)
+	}
+
+	if conf.latitude != 0 && conf.longitude != 0 && conf.radius != 0 {
+		lf, err = NewCircleLocationFinder(conf.latitude, conf.longitude, conf.radius)
+		if err != nil {
+			return err
 		}
 	}
-	return nil
+
+	for _, dir := range conf.args {
+		err = walkPicFilesInDir(dir, lf)
+	}
+
+	return err
 }
 
 // traverse a directory looking for geotagged files whose position is inside the bounding box
