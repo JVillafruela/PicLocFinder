@@ -19,6 +19,7 @@ type Config struct {
 	longitude float64
 	radius    int64
 	bbox      string
+	filename  string
 	// args are the positional (non-flag) command-line arguments.
 	args []string
 }
@@ -57,6 +58,12 @@ func main() {
 			Required:    false,
 			Destination: &conf.radius,
 		},
+		cli.StringFlag{
+			Name:        "file, f",
+			Usage:       "geoJSON file ",
+			Required:    false,
+			Destination: &conf.filename,
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -92,13 +99,15 @@ EXAMPLES:
 func validateConfig(config *Config) error {
 
 	bboxSet := config.bbox != ""
-	pointSet := (config.latitude != 0 && config.longitude != 0 && config.radius != 0)
+	pointSet := config.latitude != 0 && config.longitude != 0 && config.radius != 0
+	fileSet := config.filename != "" && config.radius != 0
 
-	if !bboxSet && !pointSet {
-		return errors.New("indicate either the bbox option or the lat,lon,radius options")
+	if !bboxSet && !pointSet && !fileSet {
+		return errors.New("indicate either the bbox option or the lat,lon,radius or the file,radius options")
 	}
-	if bboxSet && pointSet {
-		return errors.New("too many options. Indicate either the bbox option or the lat,lon,radius options")
+
+	if (bboxSet && pointSet) || (bboxSet && fileSet) || (pointSet && fileSet) {
+		return errors.New("too many options. Indicate either the bbox option or the lat,lon,radius options or the file,radius options")
 	}
 
 	if bboxSet {
@@ -119,6 +128,16 @@ func validateConfig(config *Config) error {
 		}
 		if config.radius <= 0 {
 			return errors.New("invalid radius")
+		}
+	}
+
+	if fileSet {
+		if !hasGeoJSONExtension(config.filename) {
+			return errors.New("the file does not have the geosjson extension")
+		}
+
+		if !fileExists(config.filename) {
+			return errors.New("the file does not exist")
 		}
 	}
 
@@ -150,6 +169,13 @@ func doWork(conf *Config) error {
 
 	if conf.latitude != 0 && conf.longitude != 0 && conf.radius != 0 {
 		lf, err = NewCircleLocationFinder(conf.latitude, conf.longitude, conf.radius)
+		if err != nil {
+			return err
+		}
+	}
+
+	if conf.filename != "" && conf.radius != 0 {
+		lf, err = NewPointListLocationFinder(conf.filename, conf.radius)
 		if err != nil {
 			return err
 		}
@@ -192,15 +218,26 @@ func walkPicFilesInDir(dir string, lf LocationFinder) error {
 
 // check if the file has a jpeg extension
 func hasPicExtension(filename string) bool {
-	e := []string{"jpeg", "jpg"} // sorted
+	extensions := []string{"jpeg", "jpg"} // sorted
+	return hasExtension(filename, extensions)
+}
+
+func hasGeoJSONExtension(filename string) bool {
+	extensions := []string{"geojson", "json"} // sorted
+	return hasExtension(filename, extensions)
+}
+
+func hasExtension(filename string, extensions []string) bool {
+	if len(extensions) == 0 {
+		return false
+	}
 
 	ext := strings.ToLower(strings.Trim(filepath.Ext(filename), "."))
 	if ext == "" {
 		return false
 	}
-	i := sort.SearchStrings(e, ext)
-	return i < len(e) && e[i] == ext
-
+	i := sort.SearchStrings(extensions, ext)
+	return i < len(extensions) && extensions[i] == ext
 }
 
 // on Windows get rid of the trailing " added by autocompletion \"
@@ -223,4 +260,13 @@ func dirExists(filename string) bool {
 	}
 
 	return info.IsDir()
+}
+
+// check if filename is a regular file
+func fileExists(filename string) bool {
+	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+
+	return true
 }

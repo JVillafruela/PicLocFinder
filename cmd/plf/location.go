@@ -1,68 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/paulmach/orb"
-	"github.com/paulmach/orb/geo"
-	"github.com/paulmach/orb/geojson"
 )
 
 type LocationFinder interface {
 	Match(lat, lon float64) bool
-}
-
-type BboxLocationFinder struct {
-	bbox orb.Bound
-}
-
-type CircleLocationFinder struct {
-	center orb.Point
-	// radius in meters
-	radius int64
-}
-
-// TODO PointListLocationFinder
-
-// BboxLocationFinder constructor
-func NewBboxLocationFinder(bbox string) (BboxLocationFinder, error) {
-	bound, err := BboxBound(bbox)
-	if err != nil {
-		return BboxLocationFinder{}, err
-	}
-	lf := BboxLocationFinder{bbox: bound}
-	return lf, nil
-}
-
-// Check if the point is inside the bounding box
-func (lf BboxLocationFinder) Match(lat, lon float64) bool {
-	point := orb.Point{lon, lat}
-	return lf.bbox.Contains(point)
-}
-
-// CircleLocationFinder constructor
-func NewCircleLocationFinder(lat, lon float64, radius int64) (CircleLocationFinder, error) {
-	err := validateLatitude(lat)
-	if err != nil {
-		return CircleLocationFinder{}, err
-	}
-	err = validateLongitude(lon)
-	if err != nil {
-		return CircleLocationFinder{}, err
-	}
-	if radius <= 0 {
-		return CircleLocationFinder{}, errors.New("invalid radius")
-	}
-	point := orb.Point{lon, lat}
-	return CircleLocationFinder{point, radius}, nil
-}
-
-func (lf CircleLocationFinder) Match(lat, lon float64) bool {
-	point := orb.Point{lon, lat}
-	return geo.Distance(lf.center, point) <= float64(lf.radius)
 }
 
 // get a Bound object from bounding box coordinates
@@ -112,59 +58,4 @@ func validateLongitude(lon float64) error {
 		return errors.New("invalid longitude (WGS84 [-180,+180])")
 	}
 	return nil
-}
-
-// for v0.3
-func ExampleGeoJson() {
-
-	dat, err := os.ReadFile("E:/temp/sample.geojson")
-	check(err)
-	fc := geojson.NewFeatureCollection()
-	err = json.Unmarshal(dat, &fc)
-	check(err)
-
-	for i, v := range fc.Features {
-		switch v.Geometry.(type) {
-		case orb.Point:
-			point := v.Geometry.(orb.Point)
-			println(i, "Point", point.Lat(), point.Lon())
-		case orb.LineString:
-			println(i, "LineString")
-		case orb.Polygon:
-			println(i, "Polygon")
-		}
-	}
-
-	/*
-		rawJSON := []byte(`
-		{ "type": "FeatureCollection",
-		  "features": [
-			{ "type": "Feature",
-			  "geometry": {"type": "Point", "coordinates": [102.0, 0.5]},
-			  "properties": {"prop0": "value0"}
-			}
-		  ]
-		}`)
-
-		//fc, _ := geojson.UnmarshalFeatureCollection(rawJSON)
-
-		// or
-
-		fc := geojson.NewFeatureCollection()
-		err := json.Unmarshal(rawJSON, &fc)
-		fmt.Println(fc, err)
-
-		// Geometry will be unmarshalled into the correct geo.Geometry type.
-		point := fc.Features[0].Geometry.(orb.Point)
-		fmt.Println("geo", fc.Features[0].Geometry)
-		fmt.Println("point", point)
-
-	*/
-}
-
-// to be deleted
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
 }
