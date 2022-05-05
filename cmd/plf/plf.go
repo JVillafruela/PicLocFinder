@@ -30,7 +30,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "plf"
 	app.Usage = "Picture Location Finder\n\n   Find geotagged photos according to the location where they were taken"
-	app.Version = "0.2"
+	app.Version = "0.3"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
@@ -84,6 +84,9 @@ EXAMPLES:
    plf --bbox="5.68678,45.08596,5.68979,45.08778" E:\OSM\gps\2022\2022-04-16 E:\OSM\gps\2022\2022-04-22
 
    plf --latitude=45.087 --longitude=5.688 --radius=20  E:\OSM\gps\2022
+
+   plf --file C:\OSM\guideposts\guidepost-create.geojson  --radius 20 C:\OSM\Traces\2022\
+
 	`, cli.AppHelpTemplate)
 
 	app.Setup()
